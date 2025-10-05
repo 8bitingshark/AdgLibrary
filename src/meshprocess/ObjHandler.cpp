@@ -4,6 +4,8 @@
 // ----------------------------------------------------------------
 
 #include "ObjHandler.h"
+#include "Mesh.h"
+#include "tiny_obj_loader.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -212,6 +214,73 @@ bool adg::ObjHandler::save(const std::string& file_path, const std::string& file
 	mtlFile.close();
 
 	std::cout << "\nOBJ and MTL successful exported in: " << file_path << "\n";
+
+	return true;
+}
+
+bool adg::ObjHandler::loadWithTinyObjLoader(const std::string& file_path, Mesh& outMesh)
+{
+	tinyobj::attrib_t attrib{};
+
+	// shapes is the number of loaded mesh/sub-meshes
+	std::vector<tinyobj::shape_t> shapes{};
+	std::vector<tinyobj::material_t> materials{};
+	std::string warn{};
+	std::string err{};
+
+	// Load Obj
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, file_path.c_str());
+	if (!warn.empty()) {
+		std::cout << "tinyobj warning: " << warn << std::endl;
+	}
+	if (!err.empty()) {
+		std::cerr << "tinyobj error: " << err << std::endl;
+	}
+	if (!ret) {
+		std::cerr << "Failed to load/parse .obj.\n";
+		return false;
+	}
+
+	// Debug
+	std::cout << "**DEBUG**" << std::endl;
+	std::cout << "shapes: " << shapes.size() << std::endl;
+	std::cout << "name: " << shapes[0].name.c_str() << std::endl;
+	std::cout << "indices: " << shapes[0].mesh.indices.size() << std::endl;
+	std::cout << "indices/3: " << shapes[0].mesh.indices.size() / 3 << std::endl;
+	std::cout << "num face vertices: " << shapes[0].mesh.num_face_vertices.size() << std::endl;
+	std::cout << "points.indices: " << shapes[0].points.indices.size() << std::endl;
+
+	std::cout << "num_vertices: " << attrib.vertices.size() << std::endl;
+	std::cout << "num_vertices/3: " << attrib.vertices.size() / 3 << std::endl;
+	// v 0.437500 0.164063 0.765625 - vertex 1 in file .obj
+	std::cout << "vertices[0]: " << attrib.vertices[0] << std::endl;
+	std::cout << "vertices[1]: " << attrib.vertices[1] << std::endl;
+	std::cout << "vertices[2]: " << attrib.vertices[2] << std::endl;
+
+	if (attrib.normals.size() > 0)
+	{
+		std::cout << "normal[0]: " << attrib.normals[0] << std::endl;
+		std::cout << "normal[1]: " << attrib.normals[1] << std::endl;
+		std::cout << "normal[2]: " << attrib.normals[2] << std::endl;
+	}
+
+	// attrib.GetVertices()
+	std::cout << "num_colors: " << attrib.colors.size() << std::endl;
+	std::cout << "num_normals: " << attrib.normals.size() / 3 << std::endl;
+	std::cout << "num_texcoords: " << attrib.texcoords.size() / 2 << std::endl;
+
+	// face debug
+	std::cout << "first face" << std::endl;
+	std::cout << "vertex index0: " << shapes[0].mesh.indices[0].vertex_index << std::endl;
+	std::cout << "normal index0: " << shapes[0].mesh.indices[0].normal_index << std::endl;
+	std::cout << "texcoord index0: " << shapes[0].mesh.indices[0].texcoord_index << std::endl;
+	std::cout << "vertex index1: " << shapes[0].mesh.indices[1].vertex_index << std::endl;
+	std::cout << "normal index1: " << shapes[0].mesh.indices[1].normal_index << std::endl;
+	std::cout << "texcoord index1: " << shapes[0].mesh.indices[1].texcoord_index << std::endl;
+	std::cout << "vertex index2: " << shapes[0].mesh.indices[2].vertex_index << std::endl;
+	std::cout << "normal index2: " << shapes[0].mesh.indices[2].normal_index << std::endl;
+	std::cout << "texcoord index2: " << shapes[0].mesh.indices[2].texcoord_index << std::endl;
+	std::cout << "--------------------------------------" << std::endl;
 
 	return true;
 }

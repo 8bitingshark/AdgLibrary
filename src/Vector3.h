@@ -53,9 +53,9 @@ namespace adg {
 
 		// Negation
 		// in-place
-		inline void negate() { (*this) *= -1.0f; }
+		inline void negate() { (*this) *= -Scalar(1); }
 		// out-of-place
-		inline Vector3 negated() const { return (*this) * -1.0f; }
+		inline Vector3 negated() const { return (*this) * -Scalar(1); }
 
 		// Common unit vectors (like Unity)
 		static Vector3 origin()  { return Vector3(); }

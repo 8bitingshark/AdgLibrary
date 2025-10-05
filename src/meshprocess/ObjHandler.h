@@ -6,14 +6,19 @@
 #ifndef ADG_OBJ_HANDLER_H
 #define ADG_OBJ_HANDLER_H
 
-#include "Mesh.h"
+#include <string>
 
 namespace adg {
+
+    class Mesh;
 
     class ObjHandler {
     public:
         static bool load(const std::string& file_path, Mesh& outMesh);
         static bool save(const std::string& file_path, const std::string& file_name, const Mesh& mesh);
+
+        // test
+        static bool loadWithTinyObjLoader(const std::string& file_path, Mesh& outMesh);
     };
 }
 

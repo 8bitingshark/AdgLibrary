@@ -34,7 +34,7 @@ namespace adg {
 		std::string name{};
 		std::string mtl{};
 		std::vector<Vector3> vertices{};
-		//std::vector<Vector3> uvs{};
+		//std::vector<Vector2> uvs{};
 		std::vector<Vector3> normals{};
 		std::vector<Face_Data> faces{};
 		int vertex_Count{};
