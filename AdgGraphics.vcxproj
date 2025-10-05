@@ -136,10 +136,14 @@ xcopy /y /i "$(ProjectDir)assets\models\*.mtl"   "$(OutDir)assets\models\"</Comm
     <ClInclude Include="src\Matrix.h" />
     <ClInclude Include="src\meshprocess\Mesh.h" />
     <ClInclude Include="src\meshprocess\ObjHandler.h" />
+    <ClInclude Include="src\meshprocess\tiny_obj_loader.h" />
     <ClInclude Include="src\Quaternion.h" />
     <ClInclude Include="src\Scalar.h" />
+    <ClInclude Include="src\soccer\SoccerPitch.h" />
     <ClInclude Include="src\Test.h" />
     <ClInclude Include="src\Transform.h" />
+    <ClInclude Include="src\utility\RandomUtils.h" />
+    <ClInclude Include="src\Vector2.h" />
     <ClInclude Include="src\Vector3.h" />
   </ItemGroup>
   <ItemGroup>
@@ -148,9 +152,12 @@ xcopy /y /i "$(ProjectDir)assets\models\*.mtl"   "$(OutDir)assets\models\"</Comm
     <ClCompile Include="src\Matrix.cpp" />
     <ClCompile Include="src\meshprocess\Mesh.cpp" />
     <ClCompile Include="src\meshprocess\ObjHandler.cpp" />
+    <ClCompile Include="src\meshprocess\tiny_obj_loader.cc" />
     <ClCompile Include="src\Quaternion.cpp" />
+    <ClCompile Include="src\soccer\SoccerPitch.cpp" />
     <ClCompile Include="src\Test.cpp" />
     <ClCompile Include="src\Transform.cpp" />
+    <ClCompile Include="src\Vector2.cpp" />
     <ClCompile Include="src\Vector3.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
