@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------
 
 #include "Test.h"
+#include "Vector2.h"
 #include "Vector3.h"
 #include "Quaternion.h"
 #include "Matrix.h"
@@ -10,6 +11,7 @@
 #include "AffineTransform.h"
 #include "meshprocess\Mesh.h"
 #include "meshprocess\ObjHandler.h"
+#include "utility\RandomUtils.h"
 #include <iostream>
 
 
@@ -307,4 +309,256 @@ void adg::testAffineTransform()
 	float array2[16]{};
 	exportAsRowMatrix4x4(af, array2);
 	printMatrix4x4(array2);
+}
+
+// Extra
+/*
+* With column vectors the basis vectors that form a linear transformation, changing coord space,
+* are displayed by colums, transposing the matrix will bring back to the previous coord space.
+* Vectors are pre-multiplied by matrices, so to apply trans A, B, C, the order will be CBAv
+*
+* With row vectors is the opposite.
+* The basis vectors that represent the transformation are row vectors in the matrix
+* The order to apply A, B, C is left from right: vABC
+*
+* In general a vector can be expressed as a linear combination of a set of basis vectors
+* To apply the same transformation to column or row vectors we need to change the matrix and
+* the product
+*/
+void adg::testColumnRowRepresentations()
+{
+	// Considering a vector, either row or column
+	Vector3 v(Scalar(0), Scalar(0), Scalar(1));
+
+	// Computing linear transformation example: 30 degree rotation around x axis
+	Quaternion q = cleanQuaternion(axisAngleToQuaternion(Vector3::right(), Scalar(30)));
+	// Converting to matrix
+	Matrix3x3 m1 = cleanMatrix3x3(quaternionToMatrix3x3(q));
+	std::cout << "Linear transformation: 30 degree rotation around x axis\n" << m1 << "\n";
+
+	// Building matrix from scratch
+	Matrix3x3 m2(Vector3::right(),
+		Vector3(Scalar(0), cos(toRadians(Scalar(30))), sin(toRadians(Scalar(30)))),
+		Vector3(Scalar(0), -sin(toRadians(Scalar(30))), cos(toRadians(Scalar(30)))));
+
+	// To use row-major representation we need to transpose the matrix and then multiply the matrix with
+	// a row vector
+	Matrix3x3 m3 = m1.transposed();
+
+	std::cout
+		<< "Check previous matrix with the same matrix constructed from scratch:\n"
+		<< m2 << "\n\n"
+		<< "Apply matrix using column - major representation:\n"
+		<< "v: " << v << "\n"
+		<< "v rotated: " << cleanVector3(applyMatrix3x3(m1, v)) << "\n\n"
+		<< "Apply matrix to v using row - major representation:\n"
+		<< "v rotated: " << cleanVector3(applyMatrix3x3RowRep(v, m3)) << "\n";
+}
+
+void adg::testMultiplicationOrder()
+{
+	std::cout << "---TEST MATRIX MULTIPLICATION------------------------\n\n";
+
+	Matrix3x3 m = cleanMatrix3x3(axisAngleToRotationMatrix(Vector3::up(), Scalar(90)));
+	Matrix3x3 mx = cleanMatrix3x3(eulerToRotationMatrix(Scalar(10), Scalar(0), Scalar(0)));
+
+	Vector3 v(Scalar(4), Scalar(5), Scalar(7));
+	v.normalize();
+
+	Vector3 v1 = cleanVector3(applyMatrix3x3(mx, v)); // pitch, then yaw
+	Vector3 v2 = cleanVector3(applyMatrix3x3(m, v1));
+
+	Matrix3x3 cumul = cleanMatrix3x3(multiplyMatrices(m, mx)); // pitch, than yaw
+	Vector3 v3 = cleanVector3(applyMatrix3x3(cumul, v));
+
+	Matrix3x3 mDirect = cleanMatrix3x3(eulerToRotationMatrix(Scalar(10), Scalar(90), Scalar(0)));
+	Vector3 v4 = cleanVector3(applyMatrix3x3(mDirect, v));
+
+	Quaternion q = cleanQuaternion(axisAngleToQuaternion(Vector3::up(), Scalar(90)));
+	Quaternion q2 = cleanQuaternion(axisAngleToQuaternion(Vector3::right(), Scalar(10)));
+	Quaternion q3 = cleanQuaternion((q * q2).normalized()); // pitch, than yaw
+	Quaternion q4 = cleanQuaternion(eulerToQuaternion_v2(Scalar(10), Scalar(90), Scalar(0)));
+
+	Vector3 v5 = cleanVector3(applyRotationOptimized(v, q2)); // pitch, than yaw
+	Vector3 v6 = cleanVector3(applyRotationOptimized(v5, q));
+
+	Matrix3x3 qToMCumul = cleanMatrix3x3(quaternionToMatrix3x3(q3));
+	Matrix3x3 qToMDirect = cleanMatrix3x3(quaternionToMatrix3x3(q4));
+
+	bool CumulEquals = areEqual(cumul, qToMCumul);
+	bool DirectEquals = areEqual(mDirect, qToMDirect);
+	bool Mixed = areEqual(cumul, qToMDirect);
+
+	std::cout
+		<< "v: " << v << "\n"
+		<< "Apply matrix first m then mx: " << v2 << "\n"
+		<< "Apply mCumul: " << v3 << "\n"
+		<< "Apply mDirect: " << v4 << "\n"
+		<< "Apply first q then q2: " << v6 << "\n"
+		<< "Apply qCumul: " << cleanVector3(applyRotationOptimized(v, q3)) << "\n"
+		<< "Apply qDirect: " << cleanVector3(applyRotationOptimized(v, q4)) << "\n"
+		<< "CumulEquals? " << (CumulEquals ? "Yes" : "No") << "\n"
+		<< "DirectEquals? " << (DirectEquals ? "Yes" : "No") << "\n"
+		<< "CumulEqualsDirect? " << (Mixed ? "Yes" : "No") << "\n";
+}
+
+void adg::testGimbal()
+{
+	std::cout << "\n---TEST GIMBAL---------------------------------\n\n";
+	Matrix3x3 m_Yaw = cleanMatrix3x3(axisAngleToRotationMatrix(Vector3::up(), Scalar(90)));
+	Matrix3x3 m_Pitch = cleanMatrix3x3(axisAngleToRotationMatrix(Vector3::right(), Scalar(10)));
+	Matrix3x3 m_Roll = cleanMatrix3x3(axisAngleToRotationMatrix(Vector3::forward(), Scalar(10)));
+	Matrix3x3 m_trueCumul = cleanMatrix3x3(multiplyMatrices(m_Yaw, m_Pitch));
+	Matrix3x3 m_cumul = cleanMatrix3x3(multiplyMatrices(m_Pitch, m_Yaw));
+	Matrix3x3 m_cumul2 = cleanMatrix3x3(multiplyMatrices(m_Yaw, m_Roll));
+	Matrix3x3 m_cumul3 = cleanMatrix3x3(multiplyMatrices(m_Roll, m_Yaw));
+	Matrix3x3 m_direct = cleanMatrix3x3(eulerToRotationMatrix(Scalar(10), Scalar(90), Scalar(0)));
+	Matrix3x3 m_direct2 = cleanMatrix3x3(eulerToRotationMatrix(Scalar(0), Scalar(90), Scalar(10)));
+
+	Quaternion q = cleanQuaternion(eulerToQuaternion(Scalar(10), Scalar(90), Scalar(0)));
+	Matrix3x3 qToM = cleanMatrix3x3(quaternionToMatrix3x3(q));
+
+	Vector3 v(Scalar(4), Scalar(5), Scalar(7));
+	v.normalize();
+
+	std::cout
+		<< "matrix yaw:\n" << m_Yaw
+		<< "\nmatrix pitch:\n" << m_Pitch << "\n"
+		<< "\nmatrix roll:\n" << m_Roll << "\n"
+		<< "matrix (m_yaw * m_pitch):\n" << m_trueCumul
+		<< "\nmatrix (m_pitch * m_yaw):\n" << m_cumul
+		<< "the second one matrix technically uses the wrong order\n\n"
+		<< "matrix (m_yaw * m_roll):\n" << m_cumul2
+		<< "\nmatrix (m_roll * m_yaw):\n" << m_cumul3
+		<< "\nmatrix direct from (10,90,0):\n" << m_direct << "\n"
+		<< "\nmatrix direct from (0,90,10):\n" << m_direct2 << "\n"
+		<< "\nmatrix from from q (10,90,0):\n" << qToM << "\n"
+		<< "\n"
+		<< " m_yp = m_py?" << (areEqual(m_trueCumul, m_cumul) ? " Yes" : " No") << "\n"
+		<< " m_yp = m_yr?" << (areEqual(m_trueCumul, m_cumul2) ? " Yes" : " No") << "\n"
+		<< " m_py = m_yr?" << (areEqual(m_cumul, m_cumul2) ? " Yes" : " No") << "\n"
+		<< " direct = direct2?" << (areEqual(m_direct, m_direct2) ? " Yes" : " No") << "\n\n"
+		<< "v: " << v << "\n"
+		<< "v rotated with m_yp: " << cleanVector3(applyMatrix3x3(m_trueCumul, v))
+		<< "\nv rotated with m_py: " << cleanVector3(applyMatrix3x3(m_cumul, v))
+		<< "\nv rotated with m_yr: " << cleanVector3(applyMatrix3x3(m_cumul2, v))
+		<< "\nv rotated with direct: " << cleanVector3(applyMatrix3x3(m_direct, v))
+		<< "\nv rotated with direct2: " << cleanVector3(applyMatrix3x3(m_direct2, v)) << "\n\n";
+}
+
+void adg::testTBN()
+{
+	std::cout << "random sample: ";
+	Vector3 randomSample = Vector3(Scalar(1), Scalar(0), Scalar(1)); // tangent space
+	randomSample.normalize();
+	std::cout << randomSample;
+	std::cout << std::endl;
+	
+	// normal in view space, in Unity view space is right-handed
+	// forward vector points out, in our case Z
+	Vector3 vNormalVS(Scalar(0), Scalar(0), Scalar(-1));  //Vector3 vNormalVS(Scalar(0), Scalar(0.5), Scalar(0.5));
+	vNormalVS.normalize();
+	std::cout << "normalVS: " << vNormalVS << std::endl;
+
+	float xRand = RndU::uniformFloat(-1, 1);
+	float yRand = RndU::uniformFloat(-1, 1);
+
+	// Vector3(xRand, yRand, 0.0);  Vector3(-0.798987, 0.601348, 0.0);
+	std::cout << "random tex vector: "; // it lies in xy plane
+	Vector3 vRandomVectorTex(0.798987f, 0.601348f, 0.0f); 
+	vRandomVectorTex.normalize();
+	std::cout << vRandomVectorTex << "\n";
+
+	Vector3 vTangent = vRandomVectorTex - vNormalVS * dot(vNormalVS, vRandomVectorTex);
+	vTangent.normalize();
+	std::cout 
+		<< "vTangent: " 
+		<< vTangent  // vTangent: ( -0.798987, 0.601348, 0 )
+		<< "\nNormal & Tangent angle between: " 
+		<< angleBetweenInDegrees(vNormalVS, vTangent)
+		<< "\n";
+
+	Vector3 vBiTangent = cross(vNormalVS, vTangent);
+	std::cout 
+		<< "vBiTangent: " 
+		<< vBiTangent    // vBiTangent: ( 0.601348, -0.798987, 0 )
+		<< "\nBiTangent Length: "
+		<< vBiTangent.norm() << "\n"
+		<< "Bi & tangent angle between: " << angleBetweenInDegrees(vBiTangent, vTangent) << "\n"
+		<< "Bi & normal angle between: " << angleBetweenInDegrees(vBiTangent, vNormalVS) << "\n\n";
+
+	Matrix3x3 tbn = Matrix3x3(vTangent, vBiTangent, vNormalVS);
+	Vector3 rotatedSample = applyMatrix3x3(tbn, randomSample);
+	std::cout 
+		<< "rotated sample in VS: " 
+		<< rotatedSample << "\n"
+		<< "rotated sample length: " << rotatedSample.norm() << "\n"
+		<< "dot with normal: " << dot(rotatedSample, vNormalVS) << "\n"
+		<< "dot with the original sample: " << dot(randomSample, vNormalVS) << "\n";
+	
+
+	int count = 0;
+	for (int i = 0; i < 128; ++i)
+	{
+		float xR = RndU::uniformFloat(-1, 1);
+		float yR = RndU::uniformFloat(-1, 1);
+		float zR = RndU::uniformFloat(0, 1);
+		Vector3 randSample(xR, yR, zR);
+		randSample.normalize();
+
+		xR = RndU::uniformFloat(-1, 1);
+		yR = RndU::uniformFloat(-1, 1);
+		Vector3 randTexVector(xR, yR, 0.0f);
+		randTexVector.normalize();
+
+		Vector3 tan = randTexVector - dot(vNormalVS, randTexVector) * vNormalVS;
+		tan.normalize();
+		Vector3 biTan = cross(vNormalVS, tan);
+		Matrix3x3 m(tan, biTan, vNormalVS);
+		Vector3 rotSample = applyMatrix3x3(m, randSample);
+		float dotR = dot(vNormalVS, rotSample);
+		if (dotR > 0.0f)
+		{
+			++count;
+		}
+	}
+	std::cout << "count: " << count << "\n";
+}
+
+void adg::testTemp()
+{
+	Vector2 v(Scalar(0), Scalar(3));
+	// std::cout << cleanVector2(rotateVectorByAngle(v, Scalar(90))) << "\n";
+
+	// test change of basis
+	Vector2 vPerp(-v.y, v.x);
+	Vector2 t(Scalar(3), Scalar(0));
+	Vector2 r = cleanVector2(v) * t.x + cleanVector2(vPerp) * t.y;
+	std::cout << cleanVector2(r) << "\n";
+	
+	// test reflect
+	Vector2 dirC(1.0f, 1.0f);
+	Vector2 normal = Vector2::down();
+	Vector2 reflected = reflect(dirC, normal);
+
+	std::cout << "reflected: " << cleanVector2(reflected);
+}
+
+void adg::testSoccer()
+{
+	
+}
+
+void adg::testLineInterception2D()
+{
+	// test line interception
+	Vector2 position(Scalar(3), Scalar(0));
+	Vector2 pointOntoLine(Scalar(7), Scalar(4));
+
+	Vector2 t(Scalar(9), Scalar(4));
+	Vector2 posDir = (t - position).normalized();
+	Vector2 lineDir = Vector2::left();
+
+	Vector2 result = computeInterceptionTestWithLine(position, posDir, pointOntoLine, lineDir);
+	std::cout << "intercept: " << cleanVector2(result);
 }

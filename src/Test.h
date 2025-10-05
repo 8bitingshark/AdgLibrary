@@ -21,6 +21,21 @@ namespace adg {
 	void testMatrixEulerAnglesConversions();
 	void testSlerp();
 	void testAffineTransform();
+
+	// Extra
+	void testColumnRowRepresentations();
+	void testMultiplicationOrder();
+	void testGimbal();
+	void testTBN();
+	void testTemp();
+
+	void testSoccer();
+
+	// Geometry Tests
+	void testLineInterception2D();
+
+	// Collision Exercises
+
 }
 
 #endif
